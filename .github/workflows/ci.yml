@@ -1,0 +1,28 @@
+name: evals
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Harness evals
+        run: node tools/eval.mjs evals/harness.jsonl --out eval-report.json
+      - name: Decision records are valid
+        run: node tools/records-check.mjs docs/decisions
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-report
+          path: eval-report.json
+      - name: Install into an empty project and run the evals there
+        run: |
+          dst=$(mktemp -d) && git -C "$dst" init -q
+          ./install.sh "$dst"
+          cd "$dst" && node tools/eval.mjs evals/harness.jsonl --out /tmp/install-report.json

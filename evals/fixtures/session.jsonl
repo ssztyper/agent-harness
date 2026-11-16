@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-11-05T06:00:00Z","message":{"role":"user","content":"hello harness"}}
+{"type":"assistant","timestamp":"2026-11-05T06:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"hi there"},{"type":"tool_use","name":"Bash","input":{"command":"ls"}}]}}

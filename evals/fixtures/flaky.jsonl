@@ -1,0 +1,2 @@
+# Fixture for --repeat: this case fails only on its second run (it counts runs in $FLAKY_COUNTER).
+{"id":"f","cmd":"echo x >> \"$FLAKY_COUNTER\"; n=$(wc -l < \"$FLAKY_COUNTER\" | tr -d ' '); [ \"$n\" -eq 2 ] && echo no || echo ok","expect":{"contains":["ok"]}}

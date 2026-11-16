@@ -1,0 +1,8 @@
+{
+  "acts": {
+    "read_issue": { "level": "alone", "why": "reading changes nothing others see" },
+    "comment":    { "level": "alone", "why": "an acknowledgement on the issue that asked" },
+    "merge":      { "level": "ask",   "why": "ships code to users" },
+    "delete_data": { "level": "never", "why": "cannot be undone" }
+  }
+}

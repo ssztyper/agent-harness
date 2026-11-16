@@ -1,0 +1,14 @@
+{
+  "about": "Autonomy table for an agent you build. Each act: alone (runs without a human), ask (waits for an owner's yes), never (refused). Acts not listed ask. Check with: node tools/policy.mjs templates/policy.json <act> [--guessed]",
+  "acts": {
+    "read_issue":      { "level": "alone", "why": "reading changes nothing others see" },
+    "comment":         { "level": "alone", "why": "an acknowledgement on the issue that asked; easy to edit or delete" },
+    "label":           { "level": "alone", "why": "triage metadata; reversible" },
+    "open_pr":         { "level": "ask",   "why": "others review it and CI spends money" },
+    "merge":           { "level": "ask",   "why": "ships code to users" },
+    "change_contract": { "level": "ask",   "why": "an API answer others depend on changes; needs a decision record and the owner" },
+    "send_email":      { "level": "ask",   "why": "cannot be unsent" },
+    "rotate_secret":   { "level": "never", "why": "breaks running services; an owner does it by hand" },
+    "delete_data":     { "level": "never", "why": "cannot be undone" }
+  }
+}

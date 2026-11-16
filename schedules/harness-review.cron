@@ -1,0 +1,2 @@
+# Weekly harness review, Sunday 20:00 local time. Copy to /etc/cron.d/harness-review on the always-on box.
+0 20 * * 0 dev HARNESS_PROJECT=/work/project /bin/bash /work/project/schedules/harness-review.sh

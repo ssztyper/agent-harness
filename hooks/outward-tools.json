@@ -1,0 +1,7 @@
+{
+  "_about": "Read by outward-guard.mjs. tools: MCP tool names (regex, case-insensitive) that change something others see; decision is ask (default) or deny. writeHosts: hosts a shell HTTP write may reach without asking (other rules, like curl -d, still ask). Add a pattern and an eval case for each new outward tool.",
+  "tools": [
+    { "pattern": "^mcp__.+__.*(send|post|reply|comment|create|update|edit|delete|remove|publish|upload|share|invite|merge|push|submit|transfer|pay)", "why": "an MCP tool that changes something others see" }
+  ],
+  "writeHosts": ["localhost", "127.0.0.1", "[::1]"]
+}
