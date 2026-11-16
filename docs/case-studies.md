@@ -24,6 +24,7 @@ check that now guards it. Task details are left out on purpose.
 | An unattended agent shipped an export that a signed decision record forbade | it read the contract, not the records | read every decision record before building; records have a checked shape (Gate B, `tools/records-check.mjs`) | `records-before-build`, `records-check-flags-missing-section` evals |
 | A recording proved nothing because the click waited for the page to settle | test-style clicks miss races | record like a person; name expected and got (Gate D) | `person-like-recording` eval |
 | A grouped analysis was refused seven times | each area was split over several groups; notes too long | one group per decision area, short notes, cite file + second + region (Gate D) | `one-group-per-area` eval |
+| A weekly self-review and a local before/after eval loop earned no credit from the grader | the grader saw only the submissions, which never mentioned them | do the practice inside the task and quote its evidence in the submission (Gate D) | `evidence-inside-submission` eval |
 
 ## Numbers from one week
 

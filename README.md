@@ -20,7 +20,7 @@ Every rule here exists because an agent really did the thing it now prevents:
 - it wrote a test that passed on the broken code too → **a test must fail on the base and pass with the fix**
 - it retried a payment after a timeout → **side effects run once per key, unknown outcomes are refused**
 
-[18 real failures and the rules they produced →](docs/case-studies.md)
+[19 real failures and the rules they produced →](docs/case-studies.md)
 
 ## Install (1 minute)
 
@@ -89,7 +89,7 @@ pressure. This harness moves each important behaviour to the cheapest layer that
   gate, prompt.
 - **Decisions with trade-offs:** five [decision records](docs/decisions/) with consequences on both sides,
   checked by `tools/records-check.mjs`.
-- **Learning from real failures:** [case studies](docs/case-studies.md) map eighteen actual failures to the
+- **Learning from real failures:** [case studies](docs/case-studies.md) map nineteen actual failures to the
   rules and checks they produced.
 - **Responsibility and security:** least privilege per worker, masked secrets, a human approves every rule change.
 
@@ -147,7 +147,7 @@ real failures and the rules they produced: [docs/case-studies.md](docs/case-stud
 | `workers/ci-worker/` | Run one headless worker in GitHub Actions with only its MCP link, bring the artifact home, delete secrets, runs and artifacts after |
 | `schedules/harness-review.sh` | Ambient self-improvement: weekly cron runs the evals, a read-only agent reads recent failures and proposes rules to add, merge or remove — each with an eval case; it edits nothing |
 | `templates/` | `CLAUDE.md` (project instructions where every boundary carries its reason), `policy.json`, `secret-hosts.json`, `decision-record.md`, `SYSTEM-DIFF.md` (what changed, before/after evidence, merge danger, what was not checked) |
-| `evals/harness.jsonl` | 41 cases (31 behaviour, 10 text) covering the guard, red/green, the runner, the policy table, bound secrets, the outbox, records and evidence checks, log parsing, the written rules, and a secret scan |
+| `evals/harness.jsonl` | 42 cases (31 behaviour, 11 text) covering the guard, red/green, the runner, the policy table, bound secrets, the outbox, records and evidence checks, log parsing, the written rules, and a secret scan |
 
 ## Design principles
 

@@ -69,6 +69,9 @@ The `hooks/outward-guard.mjs` hook asks before every push, repo, secret, issue, 
       guess about what is asked is always gated), follows the live message's reply format, takes approvals
       only from the owner's authenticated channel, and checks a human code's shape before relaying it,
       never using a code the request itself carried.
+- [ ] The checker sees only what you submit: every practice you want credited (a self-improvement loop, an
+      event-started agent, an autonomy table in code) happens inside this task, and its evidence (report files,
+      trigger and log lines) is quoted in the submission and the write-up. Work done elsewhere is invisible.
 - [ ] Evals for the deliverable pass (`node tools/eval.mjs <cases.jsonl> --baseline <last>`), no regression.
 - [ ] Every agent-written test passed `node tools/redgreen.mjs` (fails on base on an assertion, passes with the fix).
 

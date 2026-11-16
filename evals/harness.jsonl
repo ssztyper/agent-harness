@@ -49,3 +49,4 @@
 # Evidence: every cited "Shown by" file exists and is not empty.
 {"id":"evidence-check-flags-missing-file","cmd":"node tools/evidence-check.mjs evals/fixtures/notes/missing-evidence.md; echo exit=$?","expect":{"contains":["retry-run.log not found","cites no evidence file","exit=1"]}}
 {"id":"evidence-check-accepts-captured-file","cmd":"node tools/evidence-check.mjs evals/fixtures/notes/good-evidence.md; echo exit=$?","expect":{"contains":["0 problems","exit=0"]}}
+{"id":"evidence-inside-submission","kind":"text","cmd":"grep -c 'The checker sees only what you submit' $(ls skills/gated-contract/SKILL.md .claude/skills/gated-contract/SKILL.md 2>/dev/null | head -1)","expect":{"regex":"^1$"}}
