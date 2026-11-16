@@ -32,7 +32,7 @@ cd /path/to/your/project && node tools/eval.mjs evals/harness.jsonl   # every ca
 
 Then open the project in Claude Code: the hooks are active, and `/gated-contract` starts a task with gates.
 Fill the `TODO` lines in the new `CLAUDE.md`. Needs Node 22+, Python 3 and Claude Code; `gh` only for the CI worker.
-Zero npm dependencies. To remove it, delete the copied folders (`hooks/ tools/ workers/ schedules/ evals/ templates/`
+Zero npm dependencies. To remove it, delete the copied folders (`hooks/ tools/ workers/ schedules/ evals/ templates/ factory/`
 and `.claude/skills/gated-contract`, `.claude/skills/decision-record`).
 
 ### See it work in 30 seconds
@@ -146,8 +146,9 @@ real failures and the rules they produced: [docs/case-studies.md](docs/case-stud
 | `tools/session-text.py` | Claude Code and Codex session logs (subagents included) → plain text, for recall and audits |
 | `workers/ci-worker/` | Run one headless worker in GitHub Actions with only its MCP link, bring the artifact home, delete secrets, runs and artifacts after |
 | `schedules/harness-review.sh` | Ambient self-improvement: weekly cron runs the evals, a read-only agent reads recent failures and proposes rules to add, merge or remove — each with an eval case; it edits nothing |
+| `factory/` | A small software factory around one focused conversation: `/split` (fork Main into a pane), `/lab` (black-box checks in an isolated tmux lab, quotes verified against the screen), `/agent` (a supporting agent such as the Critic beside Main, fed by a hook, sending nothing by itself). See [factory/README.md](factory/README.md) |
 | `templates/` | `CLAUDE.md` (project instructions where every boundary carries its reason), `policy.json`, `secret-hosts.json`, `decision-record.md`, `SYSTEM-DIFF.md` (what changed, before/after evidence, merge danger, what was not checked) |
-| `evals/harness.jsonl` | 42 cases (31 behaviour, 11 text) covering the guard, red/green, the runner, the policy table, bound secrets, the outbox, records and evidence checks, log parsing, the written rules, and a secret scan |
+| `evals/harness.jsonl` | 46 cases (35 behaviour, 11 text) covering the guard, red/green, the runner, the policy table, bound secrets, the outbox, records and evidence checks, log parsing, the written rules, and a secret scan |
 
 ## Design principles
 
@@ -161,6 +162,7 @@ real failures and the rules they produced: [docs/case-studies.md](docs/case-stud
 
 ## Roadmap
 
+- More supporting agents grown in the lab (test-gap watcher, notes, migration checker).
 - Adapters for more agent CLIs (Codex, Cursor, Gemini CLI): same guard, their hook format.
 - Ready-made policy packs: "solo dev", "team repo", "agent with payments".
 - A runner template for agents that work tickets alone (event in → policy check → act → ship log).
