@@ -39,7 +39,7 @@ ${JOB}
 The latest exchange in the main conversation:
 ${recent}
 
-Answer in at most 4 short lines. First line: a verdict in at most 6 words. Then numbered findings "1. ...", at most 3, each one sentence, only if they matter. If nothing matters, write only "Nothing to flag."`;
+Answer in at most 4 short lines. First line: a verdict in at most 6 words. Then numbered findings "1. ...", at most 3 and fewer when your job sets a lower limit, each one sentence, only if they matter. If nothing matters, write only what your job says for that case, or "Nothing to flag."`;
   const r = spawnSync('claude', ['-p', prompt, '--model', model, '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--disallowedTools', 'Bash,Edit,Write,Read,Glob,Grep,WebFetch,WebSearch,Task'],
     { encoding: 'utf8', env: { ...process.env, AGENT_ROLE: agent }, timeout: 120000, cwd: '/tmp' });
   return (r.stdout || '').trim() || `(no answer: ${(r.stderr || '').slice(0, 120)})`;

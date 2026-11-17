@@ -26,6 +26,7 @@ const HELP = `lab: black-box checks for tools and agents we build, in an isolate
         --model haiku|sonnet                           Tester model (default sonnet)
         --keep                                         leave the lab running to look at it (then: stop <id>)
   node factory/lab.mjs test <agent> [--model m]       run agents/<agent>/expectations.md against the agent
+  node factory/lab.mjs climb <agent> [--models haiku,sonnet] [--tester sonnet]   same expectations per agent model → table
   node factory/lab.mjs stop [id]                       close a lab (or all) and delete its scratch copy
   node factory/lab.mjs leftovers                       list lab servers and folders still on disk
   node factory/lab.mjs attach <id>                     print the command to watch a lab live
@@ -145,7 +146,7 @@ Scenario "${sc.title}":
 ${sc.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
 When done, write ONLY this report (no other text):
-STEP <k>: I tried <what you did>, expected <what should happen>, got <what happened>. QUOTE: "<exact text copied from a screen you read, or NONE>"
+STEP <k>: I tried <what you did>, expected <what should happen>, got <what happened>. QUOTE: "<exact text copied from a screen you read, or NONE>" → ok|FAIL
 ... one line per step ...
 RESULT: PASS or FAIL
 Rules: judge only from screens you read with "read". A QUOTE must be copied character for character from the text between "--- screen" and "--- end ---" of a read; tool replies such as "typed into %1" are not screen text, so for an action with nothing to read write QUOTE: NONE. To show a result (a listing, an answer, a closed pane), read the pane and quote what is on it. Never invent output.`;
@@ -164,11 +165,12 @@ function verifyQuotes(id, report) {
   return bad;
 }
 
-function run(file, which, model, keep) {
+function run(file, which, model, keep, quiet = false) {
   const all = scenarios(file).filter((s) => !which || s.n === which);
   if (!all.length) { console.log(`no scenario ${which ?? ''} in ${file}`); process.exit(2); }
   mkdirSync(REPORTS, { recursive: true });
   let failed = 0;
+  const results = [];
   for (const sc of all) {
     const id = newLab();
     const started = new Date().toISOString();
@@ -185,7 +187,9 @@ function run(file, which, model, keep) {
     const out = join(REPORTS, `${id}.md`);
     writeFileSync(out, `# Lab report ${id}\n\nScenario: ${sc.title} (from ${relative(PROJECT, resolve(file))})\nStarted: ${started}\nTester model: ${model}\nVerdict: ${pass ? 'PASS' : 'FAIL'}\n${keep ? `Kept running: node factory/lab.mjs stop ${id}\n` : `Leftovers after stop: ${left.length ? left.join(', ') : 'none'}\n`}\n## Tester report\n\n${report}\n`);
     console.log(`${pass ? 'PASS' : 'FAIL'} ${sc.title} → ${relative(PROJECT, out)}`);
+    results.push({ id, pass, failedSteps: (report.match(/→\s*FAIL/g) || []).length + bad.length, seconds: Math.round((Date.now() - Date.parse(started)) / 1000), report: relative(PROJECT, out) });
   }
+  if (quiet) return results;
   process.exit(failed ? 1 : 0);
 }
 
@@ -211,7 +215,7 @@ function doctor() {
 
 // test <agent>: turn agents/<agent>/expectations.md into one scenario. The Tester gets the expectations; the lab copy
 // never has them, and the Tester never sees agent.md.
-function testAgent(agent, model, keep) {
+function testAgent(agent, model, keep, agentModel = 'haiku', quiet = false) {
   const f = join(PROJECT, existsSync(join(PROJECT,'agents',agent)) ? 'agents' : 'factory/agents', agent, 'expectations.md');
   if (!existsSync(f)) { console.log(`no agents/${agent}/expectations.md`); process.exit(2); }
   const blocks = readFileSync(f, 'utf8').split(/^## /m).slice(1).map((b) => { const [h, ...l] = b.split('\n'); return { h: h.trim(), lines: l.map((x) => x.trim()).filter(Boolean) }; });
@@ -221,22 +225,43 @@ function testAgent(agent, model, keep) {
   for (const b of blocks) {
     for (const l of b.lines) {
       const doM = l.match(/^Do \(Main\):\s*(.+)$/);
+      const doS = l.match(/^Do \(shell\):\s*(.+)$/);
       if (doM) steps.push(`[${b.h}] Type into Main exactly: ${doM[1]} — then wait until Main has answered (read it).`);
+      else if (doS) steps.push(`[${b.h}] In a new pane, run exactly: ${doS[1]} — then read that pane.`);
       else if (/^(Expect|Never)/.test(l)) steps.push(`[${b.h}] Wait about 30 seconds, read the ${agent} pane and judge: ${l}`);
     }
-    if (b.h === 'Before') steps.push(`In a new pane, run: factory/agent.sh ${agent} --tmux — then close that new pane only if the ${agent} opened in another one (check the pane list) and read the ${agent} pane: it should say it is watching Main.`);
+    if (b.h === 'Before') steps.push(`In a new pane, run: factory/agent.sh ${agent} --tmux --model ${agentModel} — then close that new pane only if the ${agent} opened in another one (check the pane list) and read the ${agent} pane: it should say it is watching Main.`);
   }
   const tmp = join(ROOT, `scenario-${agent}.md`);
   mkdirSync(ROOT, { recursive: true });
   writeFileSync(tmp, `## 1 · ${agent} meets its expectations\n${steps.join('\n')}\n`);
-  run(tmp, '1', model, keep);
+  return run(tmp, '1', model, keep, quiet);
+}
+
+// climb <agent>: run the same expectations once per agent model and print a table (hill climbing over the model;
+// for instructions, change agent.md between two climbs and compare). Expectations are never edited here.
+function climb(agent, models, tester) {
+  const rows = [];
+  for (const m of models) {
+    const [r] = testAgent(agent, tester, false, m, true);
+    rows.push({ model: m, ...r });
+  }
+  const table = ['| agent model | verdict | failed steps | seconds | report |', '|---|---|---|---|---|',
+    ...rows.map((r) => `| ${r.model} | ${r.pass ? 'PASS' : 'FAIL'} | ${r.failedSteps} | ${r.seconds} | ${r.report} |`)].join('\n');
+  const out = join(REPORTS, `climb-${agent}-${new Date().toISOString().replace(/[:.]/g, '-')}.md`);
+  writeFileSync(out, `# Climb ${agent}\n\nTester: ${tester}. Cost per run is not measured here (agent runs bill the model account).\n\n${table}\n`);
+  console.log(table + `\n→ ${relative(PROJECT, out)}`);
+  const best = rows.filter((r) => r.pass).map((r) => r.model);
+  console.log(best.length ? `cheapest passing (in the order given): ${best[0]}` : 'no model passed');
+  process.exit(best.length ? 0 : 1);
 }
 
 const cmd = args.shift();
 if (!cmd || cmd === '--help' || cmd === '-h') { console.log(HELP); process.exit(cmd ? 0 : 0); }
 if (cmd === 'doctor') doctor();
 else if (cmd === 'run') { const model = flag('--model') || 'sonnet'; const keep = bool('--keep'); run(args[0], args[1], model, keep); }
-else if (cmd === 'test') { const model = flag('--model') || 'sonnet'; const keep = bool('--keep'); testAgent(args[0], model, keep); }
+else if (cmd === 'test') { const model = flag('--model') || 'sonnet'; const am = flag('--agent-model') || 'haiku'; const keep = bool('--keep'); testAgent(args[0], model, keep, am); }
+else if (cmd === 'climb') { const tester = flag('--tester') || 'sonnet'; const models = (flag('--models') || 'haiku,sonnet').split(','); climb(args[0], models, tester); }
 else if (cmd === 'stop') { const ids = args[0] ? [args[0]] : leftovers().runs; for (const id of ids) { const l = stop(id); console.log(`stopped ${id}${l.length ? ' (left: ' + l.join(', ') + ')' : ''}`); } }
 else if (cmd === 'leftovers') console.log(JSON.stringify(leftovers()));
 else if (cmd === 'attach') console.log(`tmux -S ${sock(args[0])} attach`);

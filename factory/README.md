@@ -7,10 +7,12 @@ either Herdr (`hc`, `herdr-app`) or plain tmux.
 | Tool | What it does |
 |---|---|
 | `split.sh` | `/split`: fork Main into a new pane beside it with a split notice ("do not continue earlier work, act only on what I ask next"). Main gets no new turn. The split starts without project MCP servers, so it cannot call outward tools behind Main's back. |
-| `lab.mjs` | `/lab`: black-box checks. A separate tmux server on a short `/tmp` socket, a stripped copy of the project (no `.git`, logs, secrets or the agents' own tests), and a Tester agent whose only tool is driving that lab. Every report line is "I tried X, expected Y, got Z" with a quote, and the script rejects any quote that was not on a screen the Tester read. |
+| `lab.mjs` | `/lab`: black-box checks. `test <agent> --agent-model m` picks the agent's model; `climb <agent> --models haiku,sonnet` runs the same expectations once per model and writes a table to `log/lab-reports/climb-*.md`. A separate tmux server on a short `/tmp` socket, a stripped copy of the project (no `.git`, logs, secrets or the agents' own tests), and a Tester agent whose only tool is driving that lab. Every report line is "I tried X, expected Y, got Z" with a quote, and the script rejects any quote that was not on a screen the Tester read. |
 | `agent.sh` + `agent-run.mjs` | `/agent`: a supporting agent beside Main on a small, fast model. It follows only Main, shows a verdict and at most three numbered findings, and sends nothing by itself; `agent.sh send main #2` queues one finding for Main's next prompt. |
 | `agent-feed.mjs` | The hook (UserPromptSubmit + Stop) that feeds Main's prompts and finished replies to supporting agents and attaches queued findings once. Supporting agents never feed. |
 | `agents/critic/` | A Critic with a Job and black-box expectations: asks for what the request leaves out, names what else a change touches, splits big tasks. |
+| `agents/memories/` | A Memories agent: when the last exchange settles a lasting rule, it suggests exactly one line; nothing is written until you run `agent.sh keep #1`, which appends it to `KEEP.md` with its source (the Main session). |
+| `agents/gatherer/` | Expectations for `workers/phone/gather.mjs` (the context brief before a delegated task), checked offline by `workers/phone/gather.test.mjs`. |
 
 ## Use
 
@@ -18,11 +20,16 @@ either Herdr (`hc`, `herdr-app`) or plain tmux.
 node factory/lab.mjs doctor                          # tmux, claude, a throwaway lab, clean stop
 node factory/lab.mjs run factory/agents/lab-scenarios.md   # the lab works; /split carries over
 node factory/lab.mjs test critic                     # grow an agent until its expectations pass
+node factory/lab.mjs climb critic --models haiku,sonnet   # same expectations per model: keep the cheapest that passes
 factory/agent.sh critic                              # bring it home: a pane beside Main
+factory/agent.sh memories                            # suggests one memory per settled rule
+factory/agent.sh keep #1                             # keep it: one line with its source in KEEP.md
 factory/split.sh --name "idea" --focus "compare X"   # explore a tangent without spoiling Main
 ```
 
 The loop: notice a sore spot, write the expectations first, test the agent in the lab, bring it home.
+Hill climbing: the expectations stay fixed while one thing changes, either the model (`climb --models`) or the
+instructions (edit `agent.md` between two climbs); compare the tables and keep the cheapest version that passes.
 Lab runs and supporting agents use model tokens. The lab runs as you on your machine: it is for tools you build, not
 for untrusted code.
 

@@ -3,6 +3,7 @@
 # The agent follows only Main's conversation (fed by the agent-feed hook), runs on a small, fast model, numbers its
 # findings and sends nothing back by itself. Opening it adds no turn to Main: run it from a shell.
 # usage: factory/agent.sh <name> [--job "text"] [--model haiku] [--main tN] [--tmux]
+#        factory/agent.sh keep #<n> [agent]                   keep one finding as a line in KEEP.md (default agent: memories)
 #        factory/agent.sh send main #<n> [--agent <name>]     queue one finding; it joins Main's next prompt
 #        factory/agent.sh                                     list saved agents      --help  this guide
 set -euo pipefail
@@ -16,6 +17,7 @@ agent.sh: a supporting agent beside Main that watches Main's conversation and sh
   factory/agent.sh critic                      open the saved Critic (agents/critic/agent.md, "## Job")
   factory/agent.sh repeater --job "Repeat Main's last prompt in at most five words, as one numbered finding."
   factory/agent.sh critic --model sonnet       another model (default: haiku)
+  factory/agent.sh keep #1                     keep memory 1 (memories agent) as one line in KEEP.md
   factory/agent.sh send main #2                queue finding 2 for Main; it is attached to your next prompt there,
                                                without interrupting Main or touching what you typed
   factory/agent.sh                             list saved agents
@@ -27,6 +29,29 @@ if [ $# -eq 0 ]; then
   echo "saved agents:"; for d in "$project"/agents/*/ "$project"/factory/agents/*/; do [ -f "$d/agent.md" ] && echo "  $(basename "$d")"; done; echo "(factory/agent.sh --help for usage)"; exit 0
 fi
 case $1 in -h|--help) usage; exit 0 ;; esac
+
+if [ "$1" = keep ]; then
+  # Keep one suggested memory: append it to KEEP.md as one line with its source (the Main session it came from).
+  n=${2#\#}; agent=${3:-memories}
+  [[ $n =~ ^[0-9]+$ ]] || { echo "usage: factory/agent.sh keep #<n> [agent]"; exit 2; }
+  line=$(N="$n" F="$feed/findings-$agent.jsonl" S="$(tail -1 "$feed/latest" 2>/dev/null)" python3 -I - <<'PY2'
+import json, os
+f = os.environ["F"]; n = int(os.environ["N"])
+if not os.path.exists(f): raise SystemExit(f"no findings from this agent yet")
+for l in open(f):
+    e = json.loads(l)
+    if e["n"] == n:
+        text = e["text"].strip().rstrip(".")
+        print(f"- {text} · source: Main session {os.environ['S'][:8]} ({e['at'][:10]}) · how: kept from the memories agent")
+        raise SystemExit
+raise SystemExit(f"no finding #{n}")
+PY2
+) || { echo "$line"; exit 3; }
+  [ -f "$project/KEEP.md" ] || printf '# KEEP\n\n## Findings\n' > "$project/KEEP.md"
+  printf '%s\n' "$line" >> "$project/KEEP.md"
+  echo "kept #$n in KEEP.md"
+  exit 0
+fi
 
 if [ "$1" = send ]; then
   [ "${2:-}" = main ] || { echo "usage: factory/agent.sh send main #<n> [--agent <name>]"; exit 2; }
