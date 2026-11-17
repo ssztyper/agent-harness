@@ -25,6 +25,7 @@ check that now guards it. Task details are left out on purpose.
 | A recording proved nothing because the click waited for the page to settle | test-style clicks miss races | record like a person; name expected and got (Gate D) | `person-like-recording` eval |
 | A grouped analysis was refused seven times | each area was split over several groups; notes too long | one group per decision area, short notes, cite file + second + region (Gate D) | `one-group-per-area` eval |
 | A weekly self-review and a local before/after eval loop earned no credit from the grader | the grader saw only the submissions, which never mentioned them | do the practice inside the task and quote its evidence in the submission (Gate D) | `evidence-inside-submission` eval |
+| A reviewer role passed a config change because its own file held a copied, stale setting | the role trusted a snapshot of the settings | roles read facts and why-notes at every start; changes proven with a lab fixture and a before/after eval (Gate B) | `role-reads-fresh-facts` eval |
 
 ## Numbers from one week
 

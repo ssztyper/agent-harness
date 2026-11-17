@@ -27,6 +27,9 @@ which one failed and what is needed, then wait. Do not work around it.
 - [ ] Steps with input, output file and their own "stop if".
 - [ ] Each worker gets a brief (template below) and only the access its step needs (one MCP link, one folder).
 - [ ] Every key or link handed to a worker or CI secret is checked for shape and length before the run.
+- [ ] Every agent role reads its facts (settings, prices, limits) from their source and the "why" notes behind the
+      code at every start, never from a copy in its own files; a role changes only from its own failure, behind a
+      lab fixture and a before/after eval (`templates/ROLE.md`).
 - [ ] Decisions only the human can make are listed and answered (accounts, visibility, what may be published).
 - [ ] **Autonomy** table filled: each action → alone / ask / never, and the guard or budget that enforces it.
       An agent you build gets the table as data and calls `tools/policy.mjs` before every act
