@@ -54,6 +54,22 @@ node tools/policy.mjs templates/policy.json delete_data
 - Teams building agents that act alone — on tickets, mail, payments, deploys — and need a "who decides what" table that holds.
 - Anyone who wants proof, not vibes: evals for the rules, red/green for agent tests, evidence checks for reports.
 
+## What you get as a developer
+
+**In one sentence:** the rules for your coding agent live in hooks, scripts and tests, not in the prompt, so the
+agent cannot talk its way around them or forget them.
+
+| You get | What it means in practice |
+|---|---|
+| **Guardrails in code** | A hook asks before every push, deploy, issue or HTTP write and logs the decision; a secret only reaches the host it is bound to; a "who decides" table (alone / ask / never) is enforced by a script. |
+| **Proof, not vibes** | Every rule has an eval case, so a rule that stops working turns CI red; an agent-written test must fail on the base and pass with the fix. |
+| **Rules from real failures** | Each rule exists because an agent really did the thing it now prevents ([22 case studies](docs/case-studies.md)). |
+| **A small software factory** | Fork a conversation into a pane, test agents black-box in a lab that only quotes what is on screen, run supporting agents (Critic, Memories) beside your main one, and `climb` to the cheapest model that still passes ([factory/](factory/)). |
+| **Work from your phone** | Delegate a task to an always-on box: the agent gets a brief with a source on every line, sends its plan as buttons, and reports progress as one live row ([workers/phone/](workers/phone/)). |
+| **Zero friction** | No npm dependencies, a one-minute install that never overwrites your files, removed by deleting the copied folders. |
+
+> Your agent has push rights and your keys. agent-harness makes the rules actually hold, and proves it with tests.
+
 ## Why
 
 Most agent setups are a long prompt and hope. Prompts drift, get skimmed, and are silently ignored under
