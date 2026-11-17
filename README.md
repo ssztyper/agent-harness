@@ -20,7 +20,7 @@ Every rule here exists because an agent really did the thing it now prevents:
 - it wrote a test that passed on the broken code too → **a test must fail on the base and pass with the fix**
 - it retried a payment after a timeout → **side effects run once per key, unknown outcomes are refused**
 
-[20 real failures and the rules they produced →](docs/case-studies.md)
+[22 real failures and the rules they produced →](docs/case-studies.md)
 
 ## Install (1 minute)
 
@@ -89,7 +89,7 @@ pressure. This harness moves each important behaviour to the cheapest layer that
   gate, prompt.
 - **Decisions with trade-offs:** five [decision records](docs/decisions/) with consequences on both sides,
   checked by `tools/records-check.mjs`.
-- **Learning from real failures:** [case studies](docs/case-studies.md) map twenty actual failures to the
+- **Learning from real failures:** [case studies](docs/case-studies.md) map twenty-two actual failures to the
   rules and checks they produced.
 - **Responsibility and security:** least privilege per worker, masked secrets, a human approves every rule change.
 
@@ -145,10 +145,11 @@ real failures and the rules they produced: [docs/case-studies.md](docs/case-stud
 | `tools/redgreen.mjs` | Proves an agent-written test catches the bug: red on base on an assertion (not a syntax error), green with the fix |
 | `tools/session-text.py` | Claude Code and Codex session logs (subagents included) → plain text, for recall and audits |
 | `workers/ci-worker/` | Run one headless worker in GitHub Actions with only its MCP link, bring the artifact home, delete secrets, runs and artifacts after |
+| `workers/phone/` | Delegate a task to an always-on box as its own session and decide from your phone: `delegate.sh` (a session you can jump into), `decide.sh` (buttons, logged), `job.sh` (one live row for a long run). See [workers/phone/README.md](workers/phone/README.md) |
 | `schedules/harness-review.sh` | Ambient self-improvement: weekly cron runs the evals, a read-only agent reads recent failures and proposes rules to add, merge or remove — each with an eval case; it edits nothing |
 | `factory/` | A small software factory around one focused conversation: `/split` (fork Main into a pane), `/lab` (black-box checks in an isolated tmux lab, quotes verified against the screen), `/agent` (a supporting agent such as the Critic beside Main, fed by a hook, sending nothing by itself). See [factory/README.md](factory/README.md) |
 | `templates/` | `CLAUDE.md` (project instructions where every boundary carries its reason), `policy.json`, `secret-hosts.json`, `decision-record.md`, `ROLE.md` (an agent role with startup reads of fresh facts), `SYSTEM-DIFF.md` (what changed, before/after evidence, merge danger, what was not checked) |
-| `evals/harness.jsonl` | 47 cases (35 behaviour, 12 text) covering the guard, red/green, the runner, the policy table, bound secrets, the outbox, records and evidence checks, log parsing, the written rules, and a secret scan |
+| `evals/harness.jsonl` | 48 cases (36 behaviour, 12 text) covering the guard, red/green, the runner, the policy table, bound secrets, the outbox, records and evidence checks, log parsing, the written rules, and a secret scan |
 
 ## Design principles
 

@@ -26,6 +26,8 @@ check that now guards it. Task details are left out on purpose.
 | A grouped analysis was refused seven times | each area was split over several groups; notes too long | one group per decision area, short notes, cite file + second + region (Gate D) | `one-group-per-area` eval |
 | A weekly self-review and a local before/after eval loop earned no credit from the grader | the grader saw only the submissions, which never mentioned them | do the practice inside the task and quote its evidence in the submission (Gate D) | `evidence-inside-submission` eval |
 | A reviewer role passed a config change because its own file held a copied, stale setting | the role trusted a snapshot of the settings | roles read facts and why-notes at every start; changes proven with a lab fixture and a before/after eval (Gate B) | `role-reads-fresh-facts` eval |
+| Phone alerts arrived, but the human could not open the session or answer the question from them | scripts sent plain notifications, not sessions or questions | delegated work runs as its own session; decisions are phone questions with buttons, logged (`workers/phone/`) | `phone-decide-falls-back-to-yes-no` eval |
+| A choice card failed on the phone, and a resumed session offered to redo finished work | the app shows only approve/deny; a restarted session kept its old conversation | one yes/no card per option; tell resumed sessions the current state and re-check the task list first | `phone-decide-falls-back-to-yes-no` eval |
 
 ## Numbers from one week
 
