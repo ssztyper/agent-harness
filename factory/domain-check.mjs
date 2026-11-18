@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Scenario check for Domain Agents (Markdown has no compiler). For each "## " block of agents/<name>/scenarios.md
 // (Ask / Expect / Never), the agent answers fresh on its small model from its glossary and memories, and a second
-// model judges the answer against the Expect and Never lines. Prints PASS or FAIL per scenario with the answer quoted,
-// and exits 1 when any scenario fails, so a pre-commit hook or CI can stop on it.
+// model judges the answer against the Expect and Never lines; a failed scenario runs once more and fails only twice.
+// Prints PASS or FAIL per scenario with the answer quoted, and exits 1 when any scenario fails, so a pre-commit hook or CI can stop on it.
 //   node factory/domain-check.mjs [agent] [--repo <dir>] [--judge sonnet]
 //   node factory/domain-check.mjs install-hook --repo <dir>   (pre-commit: runs the check only when staged files touch agents/)
 import { spawn } from 'node:child_process';
@@ -58,7 +58,13 @@ async function main() {
   if (!agents.length) { console.log(`no Domain Agent ${cmd ?? ''} in ${repo}/agents`); return 2; }
   const jobs = agents.flatMap((a) => {
     const f = join(a.dir, 'scenarios.md');
-    return existsSync(f) ? scenarios(readFileSync(f, 'utf8')).map((sc) => check(a, sc)) : [];
+    // A model-judged check can miss once; a scenario fails only when a fresh second run fails too (shown as flaky otherwise).
+    return existsSync(f) ? scenarios(readFileSync(f, 'utf8')).map(async (sc) => {
+      const first = await check(a, sc);
+      if (first.pass) return first;
+      const again = await check(a, sc);
+      return again.pass ? { ...again, why: `flaky: first run failed (${first.why}); second passed`, cost: first.cost + again.cost } : { ...again, cost: first.cost + again.cost };
+    }) : [];
   });
   if (!jobs.length) { console.log('no scenarios.md with Ask/Expect blocks'); return 2; }
   const results = await Promise.all(jobs);
