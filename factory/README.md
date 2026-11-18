@@ -13,6 +13,7 @@ either Herdr (`hc`, `herdr-app`) or plain tmux.
 | `agents/critic/` | A Critic with a Job and black-box expectations: asks for what the request leaves out, names what else a change touches, splits big tasks. |
 | `agents/memories/` | A Memories agent: when the last exchange settles a lasting rule, it suggests exactly one line; nothing is written until you run `agent.sh keep #1`, which appends it to `KEEP.md` with its source (the Main session). |
 | `agents/gatherer/` | Expectations for `workers/phone/gather.mjs` (the context brief before a delegated task), checked offline by `workers/phone/gather.test.mjs`. |
+| `domain-brief.mjs` | Domain Agents: a read-only expert per area of a repo, in `<repo>/agents/<area>/` (`owns:` globs, `memories.md` with a receipt per line; template in `templates/domain-agent/`). A PreToolUse hook: when Main reads, edits or runs a shell command on an owned file, the agent runs once on its small model with no tools and its brief (at most five traps with references, or "nothing relevant") is added to Main's context. It never blocks, briefs once per agent per session, and logs each brief with its time and cost to `log/domain/briefs.jsonl`. `ask <agent> "<change>" --repo <dir>` asks by hand; `which <path>` shows the owner. Main stays the only writer. |
 
 ## Use
 
@@ -25,6 +26,8 @@ factory/agent.sh critic                              # bring it home: a pane bes
 factory/agent.sh memories                            # suggests one memory per settled rule
 factory/agent.sh keep #1                             # keep it: one line with its source in KEEP.md
 factory/split.sh --name "idea" --focus "compare X"   # explore a tangent without spoiling Main
+node factory/lab.mjs test billing --repo <repo>      # a Domain Agent of <repo>/agents/billing/ (repo copied into the lab)
+node factory/domain-brief.mjs ask billing "<change>" --repo <repo>   # its brief by hand
 ```
 
 The loop: notice a sore spot, write the expectations first, test the agent in the lab, bring it home.
@@ -34,6 +37,8 @@ Lab runs and supporting agents use model tokens. The lab runs as you on your mac
 for untrusted code.
 
 ## Lessons that shaped it
+- Many brains, one writer: Domain Agents only advise; a collision between two of them is the human's call, and the decision goes back into each agent's memories as one dated rule with a receipt.
+- Seed memories from history (commits, issues, reviews), not from a long instruction file: every memory cites where the lesson was learned.
 - An agent never grades its own code: the Tester only sees screens, and quotes are checked against them.
 - A forked pane stops at the first question (an MCP approval dialog): start splits with `--strict-mcp-config`.
 - `--mcp-config` takes several values and swallows a prompt placed after it: put the prompt first.

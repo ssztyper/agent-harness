@@ -26,6 +26,7 @@ const HELP = `lab: black-box checks for tools and agents we build, in an isolate
         --model haiku|sonnet                           Tester model (default sonnet)
         --keep                                         leave the lab running to look at it (then: stop <id>)
   node factory/lab.mjs test <agent> [--model m]       run agents/<agent>/expectations.md against the agent
+        --repo <dir>                                   a Domain Agent of <dir>/agents/<agent>/ (repo copied into the lab)
   node factory/lab.mjs climb <agent> [--models haiku,sonnet] [--tester sonnet]   same expectations per agent model → table
   node factory/lab.mjs stop [id]                       close a lab (or all) and delete its scratch copy
   node factory/lab.mjs leftovers                       list lab servers and folders still on disk
@@ -58,6 +59,9 @@ const dir = (id) => join(ROOT, id);
 const sock = (id) => join(ROOT, id, 's');
 const log = (id, e) => appendFileSync(join(dir(id), 'screens.jsonl'), JSON.stringify({ at: new Date().toISOString(), ...e }) + '\n');
 
+// test --repo: a repo with Domain Agents, copied into the lab as proj/<name> (no .git, vars, runs or expectations).
+let REPO = null;
+
 function copyProject(dst) {
   mkdirSync(dst, { recursive: true });
   for (const p of COPY) {
@@ -65,6 +69,7 @@ function copyProject(dst) {
     if (!existsSync(src)) continue;
     cpSync(src, join(dst, p), { recursive: true, filter: (s) => !SKIP.test(relative(PROJECT, s)) && !(statSync(s).isFile() && statSync(s).size > 5e6) });
   }
+  if (REPO) cpSync(REPO.src, join(dst, REPO.name), { recursive: true, filter: (s) => { const r = relative(REPO.src, s); return !SKIP.test(r) && !/(^|\/)runs$/.test(r) && !(statSync(s).isFile() && statSync(s).size > 5e6); } });
 }
 
 function newLab() {
@@ -214,11 +219,15 @@ function doctor() {
 }
 
 // test <agent>: turn agents/<agent>/expectations.md into one scenario. The Tester gets the expectations; the lab copy
-// never has them, and the Tester never sees agent.md.
-function testAgent(agent, model, keep, agentModel = 'haiku', quiet = false) {
-  const f = join(PROJECT, existsSync(join(PROJECT,'agents',agent)) ? 'agents' : 'factory/agents', agent, 'expectations.md');
-  if (!existsSync(f)) { console.log(`no agents/${agent}/expectations.md`); process.exit(2); }
-  const blocks = readFileSync(f, 'utf8').split(/^## /m).slice(1).map((b) => { const [h, ...l] = b.split('\n'); return { h: h.trim(), lines: l.map((x) => x.trim()).filter(Boolean) }; });
+// never has them, and the Tester never sees agent.md. With --repo <dir>, the agent is a Domain Agent of that repo
+// (<dir>/agents/<agent>/): the repo is copied into the lab as "repo", {repo} in the expectations becomes that path, and
+// an Expect line is judged on the pane it names (Main or shell).
+function testAgent(agent, model, keep, agentModel = 'haiku', quiet = false, repo = null) {
+  if (repo) REPO = { src: resolve(repo), name: 'repo' };
+  const f = repo ? join(resolve(repo), 'agents', agent, 'expectations.md')
+    : join(PROJECT, existsSync(join(PROJECT,'agents',agent)) ? 'agents' : 'factory/agents', agent, 'expectations.md');
+  if (!existsSync(f)) { console.log(`no ${relative(PROJECT, f)}`); process.exit(2); }
+  const blocks = readFileSync(f, 'utf8').replaceAll('{repo}', 'repo').split(/^## /m).slice(1).map((b) => { const [h, ...l] = b.split('\n'); return { h: h.trim(), lines: l.map((x) => x.trim()).filter(Boolean) }; });
   const steps = [
     'In the first pane (this is Main), start claude and answer the trust question if it appears.',
   ];
@@ -228,6 +237,7 @@ function testAgent(agent, model, keep, agentModel = 'haiku', quiet = false) {
       const doS = l.match(/^Do \(shell\):\s*(.+)$/);
       if (doM) steps.push(`[${b.h}] Type into Main exactly: ${doM[1]} — then wait until Main has answered (read it).`);
       else if (doS) steps.push(`[${b.h}] In a new pane, run exactly: ${doS[1]} — then read that pane.`);
+      else if (/^(Expect|Never) \((Main|shell)\)/.test(l)) steps.push(`[${b.h}] Read the ${/\(Main\)/.test(l) ? 'Main pane' : 'pane where you ran the last shell command'} and judge: ${l}`);
       else if (/^(Expect|Never)/.test(l)) steps.push(`[${b.h}] Wait about 30 seconds, read the ${agent} pane and judge: ${l}`);
     }
     if (b.h === 'Before') steps.push(`In a new pane, run: factory/agent.sh ${agent} --tmux --model ${agentModel} — then close that new pane only if the ${agent} opened in another one (check the pane list) and read the ${agent} pane: it should say it is watching Main.`);
@@ -260,7 +270,7 @@ const cmd = args.shift();
 if (!cmd || cmd === '--help' || cmd === '-h') { console.log(HELP); process.exit(cmd ? 0 : 0); }
 if (cmd === 'doctor') doctor();
 else if (cmd === 'run') { const model = flag('--model') || 'sonnet'; const keep = bool('--keep'); run(args[0], args[1], model, keep); }
-else if (cmd === 'test') { const model = flag('--model') || 'sonnet'; const am = flag('--agent-model') || 'haiku'; const keep = bool('--keep'); testAgent(args[0], model, keep, am); }
+else if (cmd === 'test') { const model = flag('--model') || 'sonnet'; const am = flag('--agent-model') || 'haiku'; const repo = flag('--repo'); const keep = bool('--keep'); testAgent(args[0], model, keep, am, false, repo); }
 else if (cmd === 'climb') { const tester = flag('--tester') || 'sonnet'; const models = (flag('--models') || 'haiku,sonnet').split(','); climb(args[0], models, tester); }
 else if (cmd === 'stop') { const ids = args[0] ? [args[0]] : leftovers().runs; for (const id of ids) { const l = stop(id); console.log(`stopped ${id}${l.length ? ' (left: ' + l.join(', ') + ')' : ''}`); } }
 else if (cmd === 'leftovers') console.log(JSON.stringify(leftovers()));
