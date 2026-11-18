@@ -14,6 +14,7 @@ either Herdr (`hc`, `herdr-app`) or plain tmux.
 | `agents/memories/` | A Memories agent: when the last exchange settles a lasting rule, it suggests exactly one line; nothing is written until you run `agent.sh keep #1`, which appends it to `KEEP.md` with its source (the Main session). |
 | `agents/gatherer/` | Expectations for `workers/phone/gather.mjs` (the context brief before a delegated task), checked offline by `workers/phone/gather.test.mjs`. |
 | `domain-brief.mjs` | Domain Agents: a read-only expert per area of a repo, in `<repo>/agents/<area>/` (`owns:` globs, `memories.md` with a receipt per line; template in `templates/domain-agent/`). A PreToolUse hook: when Main reads, edits or runs a shell command on an owned file, the agent runs once on its small model with no tools and its brief (at most five traps with references, or "nothing relevant") is added to Main's context. It never blocks, briefs once per agent per session, and logs each brief with its time and cost to `log/domain/briefs.jsonl`. `ask <agent> "<change>" --repo <dir>` asks by hand; `which <path>` shows the owner. Main stays the only writer. |
+| `domain-check.mjs` | Scenario checks for Domain Agents, because Markdown has no compiler: each `Ask / Expect / Never` block of `agents/<area>/scenarios.md` is answered fresh by the agent from its glossary and memories, and a second model judges it; exit 1 on any fail. `install-hook --repo <dir>` writes a pre-commit hook that runs it only when staged files touch `agents/`. `domain-brief.mjs consult "<feature>"` asks every Domain Agent at once before a feature that crosses areas; a collision is the human's call (`templates/domain-agent/CONSULT.md`). |
 
 ## Use
 
@@ -28,6 +29,8 @@ factory/agent.sh keep #1                             # keep it: one line with it
 factory/split.sh --name "idea" --focus "compare X"   # explore a tangent without spoiling Main
 node factory/lab.mjs test billing --repo <repo>      # a Domain Agent of <repo>/agents/billing/ (repo copied into the lab)
 node factory/domain-brief.mjs ask billing "<change>" --repo <repo>   # its brief by hand
+node factory/domain-brief.mjs consult "<feature>" --repo <repo>   # every Domain Agent at once, side by side
+node factory/domain-check.mjs --repo <repo>          # scenario checks (judge model); install-hook adds the pre-commit
 ```
 
 The loop: notice a sore spot, write the expectations first, test the agent in the lab, bring it home.
@@ -38,6 +41,7 @@ for untrusted code.
 
 ## Lessons that shaped it
 - Many brains, one writer: Domain Agents only advise; a collision between two of them is the human's call, and the decision goes back into each agent's memories as one dated rule with a receipt.
+- A watered-down glossary line passes every unit test; a scenario check with a judge model catches it, and a scenario is never deleted to make a check pass.
 - Seed memories from history (commits, issues, reviews), not from a long instruction file: every memory cites where the lesson was learned.
 - An agent never grades its own code: the Tester only sees screens, and quotes are checked against them.
 - A forked pane stops at the first question (an MCP approval dialog): start splits with `--strict-mcp-config`.

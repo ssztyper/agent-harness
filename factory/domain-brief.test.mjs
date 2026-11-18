@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { globToRegExp, owners, parseAgent, pathsOf } from './domain-brief.mjs';
+import { scenarios } from './domain-check.mjs';
+import { readFileSync } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const repo = realpathSync(mkdtempSync(join(tmpdir(), 'domain-')));
@@ -37,6 +39,11 @@ try {
     assert.deepEqual(owners(join(repo, 'src/billing/charge.js')).map((o) => o.name), ['billing']);
     assert.deepEqual(owners(join(repo, 'src/search/index.js')), []);
     assert.deepEqual(owners(join(repo, 'agents/billing/memories.md')), []);
+  });
+  t('the template has scenarios that parse', () => {
+    assert.ok(scenarios(readFileSync(join(repo, 'agents/billing/scenarios.md'), 'utf8')).length >= 1);
+    const [first] = scenarios('## T\nAsk: q?\nExpect: yes\nNever: no\n\n## No ask\nExpect: x\n');
+    assert.deepEqual(first, { title: 'T', ask: 'q?', expect: 'yes', never: 'no' });
   });
   console.log(`domain-brief test: ${n}/${n} pass`);
 } finally {

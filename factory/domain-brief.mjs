@@ -7,9 +7,10 @@
 // agents/ above the touched file wins.
 //   hook:   node factory/domain-brief.mjs                       (stdin: the hook's JSON)
 //   by hand: node factory/domain-brief.mjs ask <agent> "<change>" [--repo <dir>]
+//            node factory/domain-brief.mjs consult "<feature>" [--repo <dir>]   (every agent at once, side by side)
 //            node factory/domain-brief.mjs which <path>...       (which agents own these paths; no model call)
 //            node factory/domain-brief.mjs reset <session>       (brief again in that session)
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -54,14 +55,8 @@ export function globToRegExp(glob) {
 /** The agents of the nearest folder above `file` that holds agents/<name>/agent.md files. */
 function agentsAbove(file) {
   for (let dir = dirname(file); ; dir = dirname(dir)) {
-    const folder = join(dir, 'agents');
-    if (existsSync(folder)) {
-      const agents = readdirSync(folder, { withFileTypes: true })
-        .filter((d) => d.isDirectory() && existsSync(join(folder, d.name, 'agent.md')))
-        .map((d) => ({ name: d.name, root: dir, dir: join(folder, d.name), ...parseAgent(readFileSync(join(folder, d.name, 'agent.md'), 'utf8')) }))
-        .filter((a) => a.owns.length);
-      if (agents.length) return agents;
-    }
+    const agents = agentsOf(dir);
+    if (agents.length) return agents;
     if (dirname(dir) === dir) return [];
   }
 }
@@ -100,21 +95,42 @@ function latestPrompt(transcript) {
 }
 
 /** Runs the Domain Agent once on its model, no tools, no hooks, outside the project (no CLAUDE.md). */
-export function brief(agent, change, prompt = '') {
-  const memoriesFile = join(agent.dir, 'memories.md');
-  const memories = existsSync(memoriesFile) ? readFileSync(memoriesFile, 'utf8') : '(no memories.md yet)';
-  const ask = `Your memories (agents/${agent.name}/memories.md):\n${memories}\n\n` +
-    (prompt ? `The main conversation's latest request:\n${prompt}\n\n` : '') +
-    `${change}\n\nReply with at most ${MAX_LINES} lines: each a trap this change could hit, with its reference in square brackets as your memories give it. ` +
-    `If nothing in your memories applies, reply exactly "nothing relevant". No preamble.`;
+export function knowledge(agent) {
+  const read = (f) => (existsSync(join(agent.dir, f)) ? readFileSync(join(agent.dir, f), 'utf8') : '');
+  const glossary = read('glossary.md');
+  return (glossary ? `Your glossary (agents/${agent.name}/glossary.md):\n${glossary}\n\n` : '') +
+    `Your memories (agents/${agent.name}/memories.md):\n${read('memories.md') || '(no memories.md yet)'}`;
+}
+
+/** One headless answer from the agent's model: no tools, no hooks, outside the project (no CLAUDE.md). */
+export function answer(model, system, text, timeout = 50000) {
   const t0 = Date.now();
-  const r = spawnSync('claude', ['-p', '--model', agent.model, '--no-session-persistence', '--output-format', 'json',
-    '--settings', '{"disableAllHooks":true}', '--strict-mcp-config', '--system-prompt', agent.job, '--tools', '', '--', ask],
-  { cwd: tmpdir(), encoding: 'utf8', timeout: 50000, env: { ...process.env, DOMAIN_BRIEF_CHILD: '1' } });
+  const r = spawnSync('claude', ['-p', '--model', model, '--no-session-persistence', '--output-format', 'json',
+    '--settings', '{"disableAllHooks":true}', '--strict-mcp-config', '--system-prompt', system, '--tools', '', '--', text],
+  { cwd: tmpdir(), encoding: 'utf8', timeout, env: { ...process.env, DOMAIN_BRIEF_CHILD: '1' } });
   let j = {};
   try { j = JSON.parse(r.stdout); } catch {}
-  const text = String(j.result ?? '').trim().split('\n').filter((l) => l.trim()).slice(0, MAX_LINES).join('\n');
-  return { text, ok: Boolean(text) && !j.is_error, ms: Date.now() - t0, cost: j.total_cost_usd ?? null, error: r.error?.message || (j.is_error ? j.subtype : '') || (text ? '' : (r.stderr || 'no answer').slice(0, 200)) };
+  const out = String(j.result ?? '').trim();
+  return { text: out, ok: Boolean(out) && !j.is_error, ms: Date.now() - t0, cost: j.total_cost_usd ?? null, error: r.error?.message || (j.is_error ? j.subtype : '') || (out ? '' : (r.stderr || 'no answer').slice(0, 200)) };
+}
+
+export function brief(agent, change, prompt = '') {
+  const ask = `${knowledge(agent)}\n\n` +
+    (prompt ? `The main conversation's latest request:\n${prompt}\n\n` : '') +
+    `${change}\n\nReply with at most ${MAX_LINES} lines: each a trap this change could hit, with its reference in square brackets as your memories give it. ` +
+    `If nothing in your memories or glossary applies, reply exactly "nothing relevant". No preamble.`;
+  const r = answer(agent.model, agent.job, ask);
+  return { ...r, text: r.text.split('\n').filter((l) => l.trim()).slice(0, MAX_LINES).join('\n') };
+}
+
+/** Every Domain Agent of the repo at `root` (agents/<name>/agent.md with an "owns:" list). */
+export function agentsOf(root) {
+  const folder = join(root, 'agents');
+  if (!existsSync(folder)) return [];
+  return readdirSync(folder, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && existsSync(join(folder, d.name, 'agent.md')))
+    .map((d) => ({ name: d.name, root, dir: join(folder, d.name), ...parseAgent(readFileSync(join(folder, d.name, 'agent.md'), 'utf8')) }))
+    .filter((a) => a.owns.length);
 }
 
 const record = (session) => join(LOG, `${String(session).replace(/[^\w-]/g, '_')}.json`);
@@ -151,7 +167,36 @@ async function hook() {
   if (out.length) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: out.join('\n\n') } }));
 }
 
+/** The repo above `dir` that has Domain Agents. */
+function repoAbove(dir) {
+  for (let d = resolve(dir); ; d = dirname(d)) {
+    if (agentsOf(d).length) return d;
+    if (dirname(d) === d) return null;
+  }
+}
+
+// consult: before a feature that crosses areas, every Domain Agent answers in parallel (read-only); Main shows the
+// answers side by side, names where they disagree or where a product decision is needed, and waits for the human.
+async function consult(args) {
+  const i = args.indexOf('--repo');
+  const repo = repoAbove(i >= 0 ? args.splice(i, 2)[1] : process.cwd());
+  if (!repo) { console.log('no repo with agents/<name>/agent.md here; pass --repo <dir>'); return 2; }
+  const feature = args.join(' ');
+  const self = fileURLToPath(import.meta.url);
+  const runs = agentsOf(repo).map((a) => new Promise((done) => {
+    const c = spawn(process.execPath, [self, 'ask', a.name, feature, '--repo', repo], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = '';
+    c.stdout.on('data', (d) => (out += d));
+    c.on('close', () => done(`## ${a.name}\n${out.trim()}`));
+  }));
+  console.log(`# Consult: ${feature}\n\n${(await Promise.all(runs)).join('\n\n')}\n\n` +
+    'Next (Main): name every point where two agents disagree or where the feature forces a product decision, ask the human, and wait. ' +
+    'After the answer, Main writes all the changes and adds the decision to each agent\'s memories.md as one dated rule with a receipt.');
+  return 0;
+}
+
 function cli(cmd, args) {
+  if (cmd === 'consult') return consult(args);
   const opt = (n) => { const i = args.indexOf(n); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
   if (cmd === 'which') {
     for (const p of args) {
@@ -187,6 +232,6 @@ function cli(cmd, args) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [cmd, ...args] = process.argv.slice(2);
-  if (cmd) process.exitCode = cli(cmd, args);
+  if (cmd) process.exitCode = await cli(cmd, args);
   else await hook().catch((e) => logLine({ error: `hook: ${e.message}` }));
 }
