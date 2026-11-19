@@ -5,7 +5,7 @@ import { cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } f
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { globToRegExp, owners, parseAgent, pathsOf } from './domain-brief.mjs';
+import { customerFacing, globToRegExp, owners, parseAgent, pathsOf } from './domain-brief.mjs';
 import { scenarios } from './domain-check.mjs';
 import { readFileSync } from 'node:fs';
 
@@ -44,6 +44,11 @@ try {
     assert.ok(scenarios(readFileSync(join(repo, 'agents/billing/scenarios.md'), 'utf8')).length >= 1);
     const [first] = scenarios('## T\nAsk: q?\nExpect: yes\nNever: no\n\n## No ask\nExpect: x\n');
     assert.deepEqual(first, { title: 'T', ask: 'q?', expect: 'yes', never: 'no' });
+  });
+  t('customer-facing facts leave the internal half out', () => {
+    const c = customerFacing(readFileSync(join(repo, 'agents/billing/memories.md'), 'utf8'));
+    assert.ok(!c.includes('## Internal engineering') && !c.includes('retried request'));
+    assert.ok(c.includes('## Customer facing') && c.includes('rounds down'));
   });
   console.log(`domain-brief test: ${n}/${n} pass`);
 } finally {

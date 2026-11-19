@@ -15,6 +15,7 @@ either Herdr (`hc`, `herdr-app`) or plain tmux.
 | `agents/gatherer/` | Expectations for `workers/phone/gather.mjs` (the context brief before a delegated task), checked offline by `workers/phone/gather.test.mjs`. |
 | `domain-brief.mjs` | Domain Agents: a read-only expert per area of a repo, in `<repo>/agents/<area>/` (`owns:` globs, `memories.md` with a receipt per line; template in `templates/domain-agent/`). A PreToolUse hook: when Main reads, edits or runs a shell command on an owned file, the agent runs once on its small model with no tools and its brief (at most five traps with references, or "nothing relevant") is added to Main's context. It never blocks, briefs once per agent per session, and logs each brief with its time and cost to `log/domain/briefs.jsonl`. `ask <agent> "<change>" --repo <dir>` asks by hand; `which <path>` shows the owner. Main stays the only writer. |
 | `domain-check.mjs` | Scenario checks for Domain Agents, because Markdown has no compiler: each `Ask / Expect / Never` block of `agents/<area>/scenarios.md` is answered fresh by the agent from its glossary and memories, and a second model judges it; exit 1 on any fail. `install-hook --repo <dir>` writes a pre-commit hook that runs it only when staged files touch `agents/`. `domain-brief.mjs consult "<feature>"` asks every Domain Agent at once before a feature that crosses areas; a collision is the human's call (`templates/domain-agent/CONSULT.md`). |
+| `events.mjs` | One event inbox (`log/events.jsonl`, `source, type, id, hash, at, payload`): the same id with the same content is a `repeat` (no second piece of work), with new content a `change` (a conflict for a person). `watch <source> --job "<cmd>"` runs the job for each new event and moves a bookmark only after it; a failed job is retried. Jobs register hooks in `jobs/<job>/hooks.json` (trigger, condition, response: `approval` via `decide.sh`, `alert`, `run`; note; until), matched by plain code, fired once per event, logged, removed by `job-end`. |
 
 ## Use
 
@@ -31,6 +32,9 @@ node factory/lab.mjs test billing --repo <repo>      # a Domain Agent of <repo>/
 node factory/domain-brief.mjs ask billing "<change>" --repo <repo>   # its brief by hand
 node factory/domain-brief.mjs consult "<feature>" --repo <repo>   # every Domain Agent at once, side by side
 node factory/domain-check.mjs --repo <repo>          # scenario checks (judge model); install-hook adds the pre-commit
+node factory/domain-check.mjs --repo <repo> --runs 5 # pass to the k: every scenario 5 times, one miss fails
+node factory/domain-brief.mjs facts billing --customer --repo <repo>   # input for outward text: no internal notes
+node factory/events.mjs emit shop order.paid o-17 '{"total":120}'   # one event in; watch runs jobs and hooks
 ```
 
 The loop: notice a sore spot, write the expectations first, test the agent in the lab, bring it home.
@@ -42,6 +46,8 @@ for untrusted code.
 ## Lessons that shaped it
 - Many brains, one writer: Domain Agents only advise; a collision between two of them is the human's call, and the decision goes back into each agent's memories as one dated rule with a receipt.
 - A watered-down glossary line passes every unit test; a scenario check with a judge model catches it, and a scenario is never deleted to make a check pass.
+- An event is keyed by id and content; deduplicating by id alone drops a corrected event, and a repeat must never be
+  reported twice.
 - Seed memories from history (commits, issues, reviews), not from a long instruction file: every memory cites where the lesson was learned.
 - An agent never grades its own code: the Tester only sees screens, and quotes are checked against them.
 - A forked pane stops at the first question (an MCP approval dialog): start splits with `--strict-mcp-config`.

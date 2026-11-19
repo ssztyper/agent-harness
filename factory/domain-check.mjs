@@ -3,7 +3,7 @@
 // (Ask / Expect / Never), the agent answers fresh on its small model from its glossary and memories, and a second
 // model judges the answer against the Expect and Never lines; a failed scenario runs once more and fails only twice.
 // Prints PASS or FAIL per scenario with the answer quoted, and exits 1 when any scenario fails, so a pre-commit hook or CI can stop on it.
-//   node factory/domain-check.mjs [agent] [--repo <dir>] [--judge sonnet]
+//   node factory/domain-check.mjs [agent] [--repo <dir>] [--judge sonnet] [--runs k]
 //   node factory/domain-check.mjs install-hook --repo <dir>   (pre-commit: runs the check only when staged files touch agents/)
 import { spawn } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -16,6 +16,9 @@ const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args.splice(i, 2)[1] : d; };
 const repo = resolve(opt('--repo', process.cwd()));
 const judgeModel = opt('--judge', 'sonnet');
+// --runs k: pass to the k: every scenario k times, no retry, one miss fails it; for choosing a model
+// or instructions for unattended work. Without it a failed scenario gets one retry (a CI gate should not flake).
+const runs = Number(opt('--runs', '0'));
 const [cmd] = args;
 
 /** Scenarios of one agent: [{ title, ask, expect, never }]. */
@@ -59,6 +62,12 @@ async function main() {
   const jobs = agents.flatMap((a) => {
     const f = join(a.dir, 'scenarios.md');
     // A model-judged check can miss once; a scenario fails only when a fresh second run fails too (shown as flaky otherwise).
+    if (runs > 0) return existsSync(f) ? scenarios(readFileSync(f, 'utf8')).map(async (sc) => {
+      const all = await Promise.all(Array.from({ length: runs }, () => check(a, sc)));
+      const passed = all.filter((r) => r.pass).length;
+      const miss = all.find((r) => !r.pass);
+      return { ...(miss ?? all[0]), pass: passed === runs, why: `${passed}/${runs} runs pass${miss ? `; a miss: ${miss.why}` : ''}`, cost: all.reduce((x, r) => x + r.cost, 0) };
+    }) : [];
     return existsSync(f) ? scenarios(readFileSync(f, 'utf8')).map(async (sc) => {
       const first = await check(a, sc);
       if (first.pass) return first;

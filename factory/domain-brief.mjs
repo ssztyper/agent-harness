@@ -8,6 +8,7 @@
 //   hook:   node factory/domain-brief.mjs                       (stdin: the hook's JSON)
 //   by hand: node factory/domain-brief.mjs ask <agent> "<change>" [--repo <dir>]
 //            node factory/domain-brief.mjs consult "<feature>" [--repo <dir>]   (every agent at once, side by side)
+//            node factory/domain-brief.mjs facts <agent> [--customer] [--repo <dir>]   (input for outward text)
 //            node factory/domain-brief.mjs which <path>...       (which agents own these paths; no model call)
 //            node factory/domain-brief.mjs reset <session>       (brief again in that session)
 import { spawn, spawnSync } from 'node:child_process';
@@ -95,11 +96,16 @@ function latestPrompt(transcript) {
 }
 
 /** Runs the Domain Agent once on its model, no tools, no hooks, outside the project (no CLAUDE.md). */
-export function knowledge(agent) {
+/** Only the customer-facing half of memories.md: what text for guests, owners or the course may be built from. */
+export const customerFacing = (memories) => memories.replace(/^## Internal engineering\n[\s\S]*?(?=^## |(?![\s\S]))/m, '');
+
+/** Glossary + memories for a run; `customer` leaves the internal half out, so a writer cannot paraphrase it. */
+export function knowledge(agent, { customer = false } = {}) {
   const read = (f) => (existsSync(join(agent.dir, f)) ? readFileSync(join(agent.dir, f), 'utf8') : '');
   const glossary = read('glossary.md');
+  const memories = read('memories.md') || '(no memories.md yet)';
   return (glossary ? `Your glossary (agents/${agent.name}/glossary.md):\n${glossary}\n\n` : '') +
-    `Your memories (agents/${agent.name}/memories.md):\n${read('memories.md') || '(no memories.md yet)'}`;
+    `Your memories (agents/${agent.name}/memories.md${customer ? ', customer-facing part only' : ''}):\n${customer ? customerFacing(memories) : memories}`;
 }
 
 /** One headless answer from the agent's model: no tools, no hooks, outside the project (no CLAUDE.md). */
@@ -198,6 +204,13 @@ async function consult(args) {
 function cli(cmd, args) {
   if (cmd === 'consult') return consult(args);
   const opt = (n) => { const i = args.indexOf(n); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
+  if (cmd === 'facts') {  // the input for a writer of outward text: glossary + customer-facing memories only
+    const repo = resolve(opt('--repo') ?? process.cwd());
+    const a = agentsOf(repo).find((x) => x.name === args[0]);
+    if (!a) { console.log(`no Domain Agent ${args[0]} in ${repo}/agents`); return 2; }
+    console.log(knowledge(a, { customer: args.includes('--customer') }));
+    return 0;
+  }
   if (cmd === 'which') {
     for (const p of args) {
       const os = owners(resolve(p));

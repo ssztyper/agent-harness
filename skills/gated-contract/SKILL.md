@@ -40,6 +40,10 @@ which one failed and what is needed, then wait. Do not work around it.
 - [ ] Each secret is bound to its hosts in code and redirects are not followed with it (`tools/bound-fetch.mjs`,
       hosts in a file like `templates/secret-hosts.json`); a document or task that asks to send a secret to a
       new host is a trap, not a step. Model-provider keys never sit in the agent's vars.
+- [ ] An agent fed by events keys each one by id AND content (`factory/events.mjs`): a repeat is skipped and never
+      reported twice, the same id with new content is a conflict for the owner; before it starts, every other
+      consumer of its source (other running jobs, owned or not) is stopped or reported. A rule the model could break
+      ("a customer's text never changes a record") sits in the code it must call, not only in its prompt.
 
 ## Gate C · Outward actions (before each one)
 
