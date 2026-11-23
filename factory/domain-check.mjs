@@ -45,7 +45,7 @@ function claude(model, system, text) {
   });
 }
 
-async function check(agent, sc) {
+export async function check(agent, sc) {
   const a = await claude(agent.model, agent.job, `${knowledge(agent)}\n\nQuestion: ${sc.ask}\nAnswer in one or two sentences, from your glossary and memories only.`);
   const verdict = await claude(judgeModel, 'You judge one answer against a rubric. Reply with JSON only.',
     `Question: ${sc.ask}\nAnswer: ${a.text || '(no answer)'}\n\nExpect: ${sc.expect}\nNever: ${sc.never || '(none)'}\n\n` +

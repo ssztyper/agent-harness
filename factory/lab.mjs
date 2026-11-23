@@ -27,6 +27,7 @@ const HELP = `lab: black-box checks for tools and agents we build, in an isolate
         --keep                                         leave the lab running to look at it (then: stop <id>)
   node factory/lab.mjs test <agent> [--model m]       run agents/<agent>/expectations.md against the agent
         --repo <dir>                                   a Domain Agent of <dir>/agents/<agent>/ (repo copied into the lab)
+  node factory/lab.mjs suggest [--from globs] [--model m]   propose new agents from repeated friction, with pointers; builds nothing
   node factory/lab.mjs climb <agent> [--models haiku,sonnet] [--tester sonnet]   same expectations per agent model → table
   node factory/lab.mjs stop [id]                       close a lab (or all) and delete its scratch copy
   node factory/lab.mjs leftovers                       list lab servers and folders still on disk
@@ -272,6 +273,7 @@ if (cmd === 'doctor') doctor();
 else if (cmd === 'run') { const model = flag('--model') || 'sonnet'; const keep = bool('--keep'); run(args[0], args[1], model, keep); }
 else if (cmd === 'test') { const model = flag('--model') || 'sonnet'; const am = flag('--agent-model') || 'haiku'; const repo = flag('--repo'); const keep = bool('--keep'); testAgent(args[0], model, keep, am, false, repo); }
 else if (cmd === 'climb') { const tester = flag('--tester') || 'sonnet'; const models = (flag('--models') || 'haiku,sonnet').split(','); climb(args[0], models, tester); }
+else if (cmd === 'suggest') { const { main } = await import('./lab-suggest.mjs'); process.exitCode = main(args); }
 else if (cmd === 'stop') { const ids = args[0] ? [args[0]] : leftovers().runs; for (const id of ids) { const l = stop(id); console.log(`stopped ${id}${l.length ? ' (left: ' + l.join(', ') + ')' : ''}`); } }
 else if (cmd === 'leftovers') console.log(JSON.stringify(leftovers()));
 else if (cmd === 'attach') console.log(`tmux -S ${sock(args[0])} attach`);

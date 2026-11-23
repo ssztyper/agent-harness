@@ -16,6 +16,9 @@ either Herdr (`hc`, `herdr-app`) or plain tmux.
 | `domain-brief.mjs` | Domain Agents: a read-only expert per area of a repo, in `<repo>/agents/<area>/` (`owns:` globs, `memories.md` with a receipt per line; template in `templates/domain-agent/`). A PreToolUse hook: when Main reads, edits or runs a shell command on an owned file, the agent runs once on its small model with no tools and its brief (at most five traps with references, or "nothing relevant") is added to Main's context. It never blocks, briefs once per agent per session, and logs each brief with its time and cost to `log/domain/briefs.jsonl`. `ask <agent> "<change>" --repo <dir>` asks by hand; `which <path>` shows the owner. Main stays the only writer. |
 | `domain-check.mjs` | Scenario checks for Domain Agents, because Markdown has no compiler: each `Ask / Expect / Never` block of `agents/<area>/scenarios.md` is answered fresh by the agent from its glossary and memories, and a second model judges it; exit 1 on any fail. `install-hook --repo <dir>` writes a pre-commit hook that runs it only when staged files touch `agents/`. `domain-brief.mjs consult "<feature>"` asks every Domain Agent at once before a feature that crosses areas; a collision is the human's call (`templates/domain-agent/CONSULT.md`). |
 | `events.mjs` | One event inbox (`log/events.jsonl`, `source, type, id, hash, at, payload`): the same id with the same content is a `repeat` (no second piece of work), with new content a `change` (a conflict for a person). `watch <source> --job "<cmd>"` runs the job for each new event and moves a bookmark only after it; a failed job is retried. Jobs register hooks in `jobs/<job>/hooks.json` (trigger, condition, response: `approval` via `decide.sh`, `alert`, `run`; note; until), matched by plain code, fired once per event, logged, removed by `job-end`. |
+| `sealed.mjs` | Sealed cases: a few hand-written checks hidden from the agent making changes, in a folder outside the project (`$SEALED_DIR`, default `~/.sealed/<project>`; refused inside it). `off -- <cmd>` starts an agent the operating system refuses that folder (macOS `sandbox-exec`, Linux `bwrap`; exit 3 where neither exists, so nothing pretends); `off --check --agent` proves the wall, and an agent's "got nothing" counts only with an OS error in its words. `run <agent> --repo` runs everyday scenarios and sealed `agents/<agent>/cases.md` k times; `eval <name>` runs sealed command cases through `tools/eval.mjs`. Output is one bare line per case (number, runs passed); details stay in the sealed folder. `install-hook` adds post-commit and post-merge hooks that run it for every agent whose folder or owned files changed, never undo a commit, and print that the sealed cases did NOT run when the folder is missing. |
+| `two-keys.mjs` | A version is one fingerprint over a folder. `keep <candidate> --live <dir>` replaces the live folder only when a clean check result (written by `sealed.mjs` into the sealed folder) and a person's approval (`approve --by <name>`: typed version in a terminal, or `--phone` via `decide.sh`) both name exactly that fingerprint; the old version is saved first and `restore` puts it back. One word changed after the checks fits neither key. |
+| `lab-suggest.mjs` | `lab.mjs suggest`: reads the project's records (`KEEP.md`, `log/*.jsonl`, lab reports, `tasks/*/SOLUTION.md`, or `--from`) for friction that repeats, and proposes at most three agents the project does not have, each with `path:line` pointers that code checks and quotes; a suggestion with no real pointer, or an agent that already exists, is dropped. It builds nothing. |
 
 ## Use
 
@@ -34,6 +37,10 @@ node factory/domain-brief.mjs consult "<feature>" --repo <repo>   # every Domain
 node factory/domain-check.mjs --repo <repo>          # scenario checks (judge model); install-hook adds the pre-commit
 node factory/domain-check.mjs --repo <repo> --runs 5 # pass to the k: every scenario 5 times, one miss fails
 node factory/domain-brief.mjs facts billing --customer --repo <repo>   # input for outward text: no internal notes
+node factory/sealed.mjs off --check --agent        # prove the wall around the sealed folder
+node factory/sealed.mjs run billing --repo <repo>   # everyday + sealed cases, count-only; install-hook runs it on change
+node factory/two-keys.mjs status <candidate-dir>    # both keys for exactly this version? then approve / keep / restore
+node factory/lab.mjs suggest                         # the next agent your own friction calls for; builds nothing
 node factory/events.mjs emit shop order.paid o-17 '{"total":120}'   # one event in; watch runs jobs and hooks
 ```
 
@@ -49,6 +56,11 @@ for untrusted code.
 - An event is keyed by id and content; deduplicating by id alone drops a corrected event, and a repeat must never be
   reported twice.
 - Seed memories from history (commits, issues, reviews), not from a long instruction file: every memory cites where the lesson was learned.
+- If the agent making changes can read every check, it can pass them without keeping the promise: keep a few cases
+  where the operating system refuses them, print only counts, and treat "did not run" as loudly as a failure.
+- An agent told to fetch "a secret" may decline instead of trying, which looks like a working wall: a wall check needs
+  the OS refusal in the agent's own words.
+- Checks catch what a person skims; a person catches what the checks never asked: a version goes live only with both keys.
 - An agent never grades its own code: the Tester only sees screens, and quotes are checked against them.
 - A forked pane stops at the first question (an MCP approval dialog): start splits with `--strict-mcp-config`.
 - `--mcp-config` takes several values and swallows a prompt placed after it: put the prompt first.
